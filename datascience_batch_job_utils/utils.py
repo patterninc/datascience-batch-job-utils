@@ -209,7 +209,13 @@ def publish_log_file(log_file_path: Path,
 
 def to_sql_safe_list(iterable: List[Union[str, int]],
                      ) -> str:
-    """format list of values for SQL queries"""
+    """
+    format list of values for SQL queries
+    """
+
+    if not iterable:
+        raise ValueError(f'{to_sql_safe_list.__name__} encountered empty iterable.')
+
     if isinstance(iterable[0], int):
         return "(" + ", ".join([str(i) for i in iterable]) + ")"
     elif isinstance(iterable[0], str):
