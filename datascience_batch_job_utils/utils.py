@@ -1,4 +1,4 @@
-from typing import Union, Optional, Tuple, Literal, Callable
+from typing import Union, Optional, Tuple, Literal, Callable, List
 import datetime
 import sys
 from pathlib import Path
@@ -218,3 +218,22 @@ def publish_log_file(log_file_path: Path,
         print(f'Path to log file {log_file_path} does not exist. Cannot publish.')
 
 
+
+def to_sql_safe_list(iterable: List[Union[str, int]],
+                     ) -> str:
+    """format list of values for SQL queries"""
+    if isinstance(iterable[0], int):
+        return "(" + ", ".join([str(i) for i in iterable]) + ")"
+    elif isinstance(iterable[0], str):
+        return "('" + "', '".join([to_sql_safe_string(i) for i in iterable]) + "')"
+    else:
+        raise RuntimeError(f'{to_sql_safe_list.__name__} does not support {iterable}.')
+
+
+def to_sql_safe_string(brand_name: str) -> str:
+    """
+    Escape apostrophes by doubling them up in the name.
+    E.g. 'Crafter's Companion' --> 'Crafter''s Companion'
+    """
+    brand_name = brand_name.replace('\'', '\'\'')
+    return brand_name

@@ -6,7 +6,7 @@ pandas~=1.4.3
 # database
 python-dotenv~=0.20.0
 snowflake-sqlalchemy==1.4.3
-snowflake-connector-python
+snowflake-connector-python==3.0.1
 pyarrow<8.1.0,>=8.0.0
 SQLAlchemy==1.4.41
 
