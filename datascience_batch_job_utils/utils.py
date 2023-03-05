@@ -25,7 +25,6 @@ def push_to_snowflake(engine: Engine,
                       table_name: str,
                       df: pd.DataFrame,
                       logger: Logger,
-                      msg_prefix: str = '',
                       if_exists: Literal['append', 'fail', 'replace'] = 'append',
                       print_df_info: bool = False,
                       add_created_date: bool = False,
@@ -52,9 +51,9 @@ def push_to_snowflake(engine: Engine,
 
     if logger is not None:
         if if_exists == 'append':
-            logger.info(f'{msg_prefix} Appending {len(df):,} rows to {table_name.upper()}.')
+            logger.info(f'Appending {len(df):,} rows to {table_name.upper()}.')
         elif if_exists == 'replace':
-            logger.info(f'{msg_prefix} Replacing {table_name.upper()} with {len(df):,} rows.')
+            logger.info(f'Replacing {table_name.upper()} with {len(df):,} rows.')
         else:
             raise AttributeError('Invalid arg to if_exists.')
 
