@@ -1,1 +1,23 @@
+# data-science
+numpy~=1.23.2
+pandas~=1.4.3
+
+# database connections
+pyarrow~=10.0.1
+snowflake-sqlalchemy~=1.4.6
+snowflake-connector-python~=3.0.0
+SQLAlchemy~=1.4.41
+pyopenssl~=23.0.0
+cryptography~=39.0.1
+
+# accessing google sheets
+google-api-python-client~=2.60.0
+ratelimit~=2.2.1
+
+# utilities
+pybrake~=1.8.0
+timeout-decorator~=0.5.0
+pytz~=2022.6
+psutil~=5.9.4
+boto3~=1.26.22
 python-dotenv
