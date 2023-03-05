@@ -153,7 +153,7 @@ def read_from_google_sheets(spreadsheet_id: str,
 
     # get values from Google sheet
     try:
-        gs_values = get_values_from_google_sheet(sheet_range=configs.GoogleSheets.range,
+        gs_values = get_values_from_google_sheet(spreadsheet_range=configs.GoogleSheets.range,
                                                  spreadsheet_id=spreadsheet_id)
     except HttpError:  # sheet cannot be found
         raise NoGoogleSheetFound(brand=brand)
