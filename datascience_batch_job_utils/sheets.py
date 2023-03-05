@@ -209,8 +209,6 @@ def read_from_google_sheets(spreadsheet_id: str,
         else:
             raise SheetParsingError(col_std=col_std, col_vars=col_vars)
 
-    df_gs = df_gs[column_name2variations.keys()]
-
     # drop rows with empty string
     for name in column_name2variations:
         df_gs[name] = df_gs[name].apply(lambda value: None if value == '' else value)
