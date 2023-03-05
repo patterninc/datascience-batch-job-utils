@@ -1,5 +1,6 @@
 import os
 import time
+import itertools
 from ratelimit import limits, sleep_and_retry
 from ssl import SSLError
 from typing import Dict, List, Tuple
@@ -144,12 +145,19 @@ def execute_request_with_rate_limit(http_get_request):
 def read_from_google_sheets(spreadsheet_id: str,
                             brand: str,
                             column_name2variations: Dict[str, List[str]],
+                            row_idx_with_column_names: int = 2,  # 3rd row
+                            start_row: int = 4,  # in which row does the data start?
                             ) -> pd.DataFrame:
     """
     get data from Google Sheet.
 
     note: by omitting last row number, Google API returns range up to last non-empty row.
     """
+
+    # make sure variations are lower-cased, because all column names in sheet will be lower-cased
+    for variations in column_name2variations.values():
+        for v in variations:
+            assert v == v.lower()
 
     # get values from Google sheet
     try:
@@ -160,10 +168,10 @@ def read_from_google_sheets(spreadsheet_id: str,
 
     # get column names
     # note: a column name may be empty. we must fill it so that it is not dropped and raises an error below
-    row_idx_with_column_names = 2  # 3rd row
     columns = ['<empty>'] * max([len(row) for row in gs_values])
     for n, v in enumerate(gs_values[row_idx_with_column_names]):
         columns[n] = v
+
     # get values. insert empty values when a row is not as long as the longest row
     gs_values_parsed = []
     for row in gs_values[row_idx_with_column_names + 1:]:
@@ -172,29 +180,65 @@ def read_from_google_sheets(spreadsheet_id: str,
                                       columns=columns,
                                       )
 
-    # find only relevant columns
-    df_gs.columns = df_gs.columns.map(str.lower)
-    for cn_standardized, variations in column_name2variations.items():
-        for cn_var in variations:
-            if cn_var.lower() in df_gs.columns:
-                df_gs.rename(columns={cn_var.lower(): cn_standardized}, inplace=True)
+    # fill empty column names, and lowercase
+    df_gs.columns = [c if c else alpha
+                     for alpha, c in zip(column_range_cycler(), df_gs.columns)]
+    # lowercase column names
+    df_gs.columns = [c.lower() for c in df_gs.columns]
+    # add information about the row where listing text for an ASIN should be written to
+    df_gs['Row'] = df_gs.index + start_row
+    # fill empty column names or bad columns
+    df_gs.columns = [c if c and not c.startswith('<')  # e.g. "<100 characters"
+                     else gs_range
+                     for gs_range, c in zip(column_range_cycler(), df_gs.columns)]
+    # rename column variants to standard name,
+    # and get alphabetic character to locate the column in the sheet (e.g. A, B, )
+    # note: we get column of titles and ASINs so that we can write to those columns later
+    header2range = {cn: None for cn in column_name2variations}
+    for col_std, col_vars in column_name2variations.items():
+        for gs_range, header_in_sheet in zip(column_range_cycler(), df_gs.columns):
+            try:
+                col_vars.index(header_in_sheet.lower().strip())
+            except ValueError:
+                continue
+            else:
+                df_gs.rename(columns={header_in_sheet: col_std}, inplace=True)
+                # also save info where each header is in the sheet for later
+                header2range[col_std] = gs_range
                 break
         else:
-            raise SheetParsingError(f'Did not find cell with variation of "{cn_standardized}" in Google Sheet header.')
+            raise SheetParsingError(col_std=col_std, col_vars=col_vars)
 
     df_gs = df_gs[column_name2variations.keys()]
 
-    # drop rows where URL or ASIN is empty string
+    # drop rows with empty string
     for name in column_name2variations:
         df_gs[name] = df_gs[name].apply(lambda value: None if value == '' else value)
         df_gs = df_gs.dropna(axis=0, how='any', subset=[name])
 
-    # TODO handle products with pending ASINs by using master product id or row number in spreadsheet as identifier
-
-    # drop rows with invalid ASINs (e.g. "ASIN Pending", "NEW")
-    df_gs = df_gs[df_gs['ASIN'].str.len() == 10]
+    # exclude irrelevant columns
+    df_gs = df_gs[['Row'] + list(column_name2variations.keys())]
 
     return df_gs
+
+
+def column_range_cycler():
+    """
+    generates 'A', 'B', ..., 'AA', 'AB', ... until ZZ
+    """
+
+    alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+                'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+
+    # first, loop over alphabet once
+    for a in alphabet:
+        yield a
+
+    alphabet_cycle = itertools.cycle(alphabet)
+
+    for a1_repeated in (itertools.repeat(a, len(alphabet)) for a in alphabet):
+        for a1 in a1_repeated:
+            yield f'{a1}{next(alphabet_cycle)}'
 
 
 def find_spreadsheet_with_seo_content(brand: str,
