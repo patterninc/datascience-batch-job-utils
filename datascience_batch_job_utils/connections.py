@@ -29,7 +29,8 @@ def get_sql_alchemy_engine(db: str,
     )
 
 
-def get_snowflake_connector_connection(schema: str
+def get_snowflake_connector_connection(db: str = 'pattern_db',
+                                       schema: str = 'data_science',
                                        ) -> SnowflakeConnection:
     """
     start a session.
@@ -44,10 +45,22 @@ def get_snowflake_connector_connection(schema: str
         account='pattern',
         user=os.getenv('snowflake_un'),
         password=os.getenv('snowflake_pw'),
-        database='PATTERN_DB',
+        database=db,
         schema=schema,
         role=os.getenv('snowflake_role'),
         warehouse=os.getenv('snowflake_wh'),
     )
 
     return conn
+
+
+def snowflake_query_string(query: str,
+                           db='PATTERN_DB',
+                           schema='DATA_SCIENCE',
+                           ):
+    ctx = get_snowflake_connector_connection(db=db, schema=schema)
+    try:
+        query_results_cursors = ctx.execute_string(query)
+        return query_results_cursors
+    finally:
+        ctx.close()
