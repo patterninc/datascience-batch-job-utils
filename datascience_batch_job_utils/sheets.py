@@ -7,6 +7,7 @@ import pandas as pd
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from google.auth.exceptions import TransportError
 
 from datascience_batch_job_utils import configs
 from datascience_batch_job_utils.exceptions import SheetParsingError
@@ -57,17 +58,43 @@ def get_name2spreadsheet_id() -> Dict[str, str]:
     return res
 
 
-def get_values_from_google_sheet(sheet_range: str,
-                                 spreadsheet_id: str,
-                                 max_num_retry: int = 3,
-                                 ) -> List[List]:
+def get_name2sheet_id(spreadsheet_id: str,
+                      ) -> Dict[str, int]:
+    """
+    a sheet is a tab within a spreadsheet. each sheet has its own unique name and ID
+    """
 
     # authenticate by looking for private key in environment variables
     creds = get_google_auth_credentials()
     service = build('sheets', 'v4', credentials=creds)
     service_spreadsheets = service.spreadsheets()
 
-    http_get_request = service_spreadsheets.values().get(spreadsheetId=spreadsheet_id, range=sheet_range)
+    # get information about the spreadsheet
+    http_request = service_spreadsheets.get(spreadsheetId=spreadsheet_id)
+    result = execute_request_with_rate_limit(http_request)
+
+    # get names and IDs of all sheets/tabs in the spreadsheet
+    res = {sheet['properties']['title']: sheet['properties']['sheetId']
+           for sheet in result['sheets']
+           }
+
+    return res
+
+
+def get_values_from_google_sheet(spreadsheet_range: str,
+                                 spreadsheet_id: str,
+                                 max_num_retry: int = 3,
+                                 verbose: bool = False,
+                                 ) -> List[List]:
+    if verbose:
+        print(f'Getting values from spreadsheet with range={spreadsheet_range}')
+
+    # authenticate by looking for private key in environment variables
+    creds = get_google_auth_credentials()
+    service = build('sheets', 'v4', credentials=creds)
+    service_spreadsheets = service.spreadsheets()
+
+    http_get_request = service_spreadsheets.values().get(spreadsheetId=spreadsheet_id, range=spreadsheet_range)
 
     result = False
     retry = 0
@@ -78,20 +105,29 @@ def get_values_from_google_sheet(sheet_range: str,
         except SSLError as ex:
             if retry < max_num_retry:
                 print(f'Encountered {ex}. Waiting 1s and then retrying.')
+                print(retry, max_num_retry)
                 time.sleep(1)
             else:
                 raise ex
+        except TransportError as ex:
+            if retry < max_num_retry:
+                print(f'Encountered {ex}. Waiting 1s and then retrying.')
+                print(retry, max_num_retry)
+                time.sleep(1)
         except TimeoutError as ex:
             if retry < max_num_retry:
                 print(f'Encountered {ex}. Waiting 1s and then retrying.')
+                print(retry, max_num_retry)
                 time.sleep(1)
             else:
                 raise ex
+        except Exception as ex:
+            raise ex
 
     try:
         res = result['values']
     except KeyError:  # empty range
-        print(f'Did not find values in spreadsheet with range {sheet_range}.')
+        print(f'Did not find values in spreadsheet with range {spreadsheet_range}.')
         return []
     else:
         return res
