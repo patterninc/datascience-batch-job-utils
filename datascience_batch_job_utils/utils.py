@@ -1,6 +1,9 @@
-from typing import Union, Optional, Tuple, Literal, Callable, List
+from typing_extensions import ParamSpec
+from functools import wraps
+from typing import List, Union, Callable, Optional, Tuple, Literal, Callable, List
 import datetime
 import sys
+import time
 from pathlib import Path
 import pandas as pd
 import logging
@@ -14,6 +17,8 @@ from dotenv import load_dotenv
 from snowflake.connector.pandas_tools import pd_writer
 from sqlalchemy.engine import Engine
 import pybrake
+
+from datascience_batch_job_utils.exceptions import EmptyQueryResults
 
 
 def is_inside_aws():
@@ -117,12 +122,6 @@ def get_logger(name: Optional[str] = None,
     return logger
 
 
-def make_msg_prefix(asin: str,
-                    ) -> str:
-
-    return f'ASIN {asin} |'
-
-
 def is_asin_valid(asin: str,
                   ) -> bool:
 
@@ -170,15 +169,6 @@ def log_failure(logger: Logger,
         traceback.print_exc()
 
 
-def get_response_from_url(url: str):
-
-    load_dotenv()
-    api = CrawlingAPI({'token': os.environ['SCRAPER_API_TOKEN']})
-    response = api.get(url)
-
-    return response
-
-
 def publish_log_file(log_file_path: Path,
                      project_name: str,
                      subject: Optional[str] = None,
@@ -217,7 +207,6 @@ def publish_log_file(log_file_path: Path,
         print(f'Path to log file {log_file_path} does not exist. Cannot publish.')
 
 
-
 def to_sql_safe_list(iterable: List[Union[str, int]],
                      ) -> str:
     """format list of values for SQL queries"""
@@ -236,3 +225,32 @@ def to_sql_safe_string(brand_name: str) -> str:
     """
     brand_name = brand_name.replace('\'', '\'\'')
     return brand_name
+
+
+QueryFnInp = ParamSpec('QueryFnInp')
+
+
+def raise_exception_if_empty(fn: Callable[QueryFnInp, pd.DataFrame],
+                             verbose: bool = True,
+                             ) -> [QueryFnInp, pd.DataFrame]:
+    @wraps(fn)  # necessary so that __name__ returns the name of the wrapped function instead of the decorator
+    def wrapper(*args: QueryFnInp.args,
+                **kwargs: QueryFnInp.kwargs,
+                ) -> pd.DataFrame:
+
+        start = time.time()
+
+        if verbose:
+            print(f'Started SQL query: {fn.__name__}')
+
+        df: pd.DataFrame = fn(*args, **kwargs)
+
+        if verbose:
+            print(f'Completed SQL query: {fn.__name__} in {time.time() - start} seconds')
+
+        if df.empty:
+            raise EmptyQueryResults(fn_name=fn.__name__)
+        else:
+            return df
+
+    return wrapper
