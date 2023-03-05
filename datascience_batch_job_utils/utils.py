@@ -182,7 +182,7 @@ def get_response_from_url(url: str):
 
 def publish_log_file(log_file_path: Path,
                      project_name: str,
-                     subject: str,
+                     subject: Optional[str] = None,
                      region_name: str = 'us-west-2',
                      owner: str = 'Philip Huebner',
                      profile_name: str = 'dev',
@@ -205,7 +205,7 @@ def publish_log_file(log_file_path: Path,
         client.publish(
             TopicArn=topic_arn,
             Message=log_file_path.read_text(),
-            Subject=subject,
+            Subject=subject or f'{project_name}-log',
             MessageAttributes={
                 'Owner': {
                     'DataType': 'String',
