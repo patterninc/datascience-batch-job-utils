@@ -178,8 +178,8 @@ def log_failure(logger: Logger,
 
 
 def publish_log_file(log_file_path: Path,
-                     logger: Logger,
                      project_name: str,
+                     logger: Optional[Logger] = None,
                      subject: Optional[str] = None,
                      region_name: str = 'us-west-2',
                      owner: str = 'Philip Huebner',
@@ -192,12 +192,13 @@ def publish_log_file(log_file_path: Path,
     """
 
     # decide if to publish
-    for handler in logger.handlers:
-        if handler.name == 'collector':
-            handler: RecordCollector
-            # if no records in the collector, do not publish
-            if not handler.records:
-                return
+    if logger is not None:
+        for handler in logger.handlers:
+            if handler.name == 'collector':
+                handler: RecordCollector
+                # if no records in the collector, do not publish
+                if not handler.records:
+                    return
 
     if is_inside_aws():
         client = boto3.client('sns')
