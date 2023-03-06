@@ -1,6 +1,6 @@
 from typing_extensions import ParamSpec
 from functools import wraps
-from typing import List, Union, Callable, Optional, Tuple, Literal, Callable, List
+from typing import Union, Optional, Tuple, Literal, Callable, List
 import datetime
 import sys
 import time
@@ -18,6 +18,7 @@ from snowflake.connector.pandas_tools import pd_writer
 from sqlalchemy.engine import Engine
 import pybrake
 
+from datascience_batch_job_utils.helpers import RecordCollector
 from datascience_batch_job_utils.exceptions import EmptyQueryResults
 
 
@@ -172,6 +173,7 @@ def log_failure(logger: Logger,
 def publish_log_file(log_file_path: Path,
                      project_name: str,
                      subject: Optional[str] = None,
+                     publish_if: str = 'error',  # publish log only if the string is in the log
                      region_name: str = 'us-west-2',
                      owner: str = 'Philip Huebner',
                      profile_name: str = 'dev',
