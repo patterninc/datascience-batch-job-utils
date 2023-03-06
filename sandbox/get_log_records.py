@@ -21,3 +21,8 @@ logger.critical('This is a critical error')
 log_records = collector.records
 
 print(log_records)
+
+for handler in logger.handlers:
+    print(handler)
+    print(handler.name)
+    print(dir(handler))

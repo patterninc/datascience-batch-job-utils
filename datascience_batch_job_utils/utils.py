@@ -82,6 +82,7 @@ def get_logger(name: Optional[str] = None,
                use_airbrake: bool = False,
                pybrake_env_name: str = 'production',
                pybrake_log_level: int = logging.CRITICAL,
+               collector_log_level: int = logging.WARNING,
                ) -> Union[Tuple[Logger, Path], Logger]:
 
     if name is None:
@@ -119,6 +120,12 @@ def get_logger(name: Optional[str] = None,
         airbrake_handler = pybrake.LoggingHandler(notifier=notifier,
                                                   level=pybrake_log_level)
         logger.addHandler(airbrake_handler)
+
+    # set up a handler that collects messages only above some log level.
+    # note: the collector is used to decide if the log should be published.
+    collector = RecordCollector()
+    collector.setLevel(collector_log_level)
+    logger.addHandler(collector)
 
     return logger
 
@@ -171,9 +178,9 @@ def log_failure(logger: Logger,
 
 
 def publish_log_file(log_file_path: Path,
+                     logger: Logger,
                      project_name: str,
                      subject: Optional[str] = None,
-                     publish_if: str = 'error',  # publish log only if the string is in the log
                      region_name: str = 'us-west-2',
                      owner: str = 'Philip Huebner',
                      profile_name: str = 'dev',
@@ -183,6 +190,14 @@ def publish_log_file(log_file_path: Path,
     send the log file via AWS SNS.
     note: you must manually create a topic in AWS SNS in the management console for this to work.
     """
+
+    # decide if to publish
+    for handler in logger.handlers:
+        if handler.name == 'collector':
+            handler: RecordCollector
+            # if no records in the collector, do not publish
+            if not handler.records:
+                return
 
     if is_inside_aws():
         client = boto3.client('sns')
