@@ -198,7 +198,10 @@ def publish_log_file(log_file_path: Path,
                 handler: RecordCollector
                 # if no records in the collector, do not publish
                 if not handler.records:
+                    print(f'No messages found with severity of at least {handler.level}.')
                     return
+                else:
+                    print(f'Found {len(handler.records)} messages with severity of at least {handler.level}.')
 
     if is_inside_aws():
         client = boto3.client('sns')
@@ -206,7 +209,11 @@ def publish_log_file(log_file_path: Path,
 
         boto3.setup_default_session(profile_name=profile_name)
         client = boto3.client('sns', region_name=region_name)
-    if log_file_path.exists() and is_inside_aws():
+
+    if not log_file_path.exists():
+        print(f'Path to log file {log_file_path} does not exist. Cannot publish.')
+
+    if is_inside_aws():
         topic_arn = f'arn:aws:sns:{region_name}:{account_id}:{project_name}'
 
         client.publish(
@@ -221,8 +228,9 @@ def publish_log_file(log_file_path: Path,
             },
         )
         print(f'Published log file to topic {topic_arn}')
+
     else:
-        print(f'Path to log file {log_file_path} does not exist. Cannot publish.')
+        print('Not publishing log because code is not running inside AWS.')
 
 
 def to_sql_safe_list(iterable: List[Union[str, int]],
