@@ -91,7 +91,7 @@ def get_logger(name: Optional[str] = None,
     # init logger
     logger = logging.getLogger(name)  # Get the logger from logging package
     formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s',
-                                  "%Y-%m-%d %H:%M:%S")  # Formatting for the logs
+                                  "%Y-%m-%d %H:%M:%S")
 
     # Set up the stream handler for the logger
     stream_handler = logging.StreamHandler(sys.stdout)  # Create a stream handler object
@@ -216,9 +216,17 @@ def publish_log_file(log_file_path: Path,
     if is_inside_aws():
         topic_arn = f'arn:aws:sns:{region_name}:{account_id}:{project_name}'
 
+        # pad with underscores, because white space is trimmed in email.
+        log_text = log_file_path.read_text()
+        log_text = log_text.replace('DEBUG    ', 'DEBUG____')
+        log_text = log_text.replace('INFO     ', 'INFO_____')
+        log_text = log_text.replace('WARNING  ', 'WARNING__')
+        log_text = log_text.replace('ERROR    ', 'ERROR____')
+        log_text = log_text.replace('CRITICAL ', 'CRITICAL_')
+
         client.publish(
             TopicArn=topic_arn,
-            Message=log_file_path.read_text(),
+            Message=log_text,
             Subject=subject or f'{project_name}-log',
             MessageAttributes={
                 'Owner': {
