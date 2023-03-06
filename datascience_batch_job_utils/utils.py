@@ -33,7 +33,7 @@ def push_to_snowflake(engine: Engine,
                       if_exists: Literal['append', 'fail', 'replace'] = 'append',
                       print_df_info: bool = False,
                       add_created_date: bool = False,
-                      is_scheduled: bool = False,
+                      is_scheduled: Optional[bool] = None,
                       ) -> None:
 
     if df.empty:
