@@ -216,13 +216,7 @@ def publish_log_file(log_file_path: Path,
     if is_inside_aws():
         topic_arn = f'arn:aws:sns:{region_name}:{account_id}:{project_name}'
 
-        # pad with underscores, because white space is trimmed in email.
         log_text = log_file_path.read_text()
-        log_text = log_text.replace('DEBUG    ', 'DEBUG____')
-        log_text = log_text.replace('INFO     ', 'INFO_____')
-        log_text = log_text.replace('WARNING  ', 'WARNING__')
-        log_text = log_text.replace('ERROR    ', 'ERROR____')
-        log_text = log_text.replace('CRITICAL ', 'CRITICAL_')
 
         client.publish(
             TopicArn=topic_arn,
